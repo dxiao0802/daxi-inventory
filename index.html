@@ -219,7 +219,10 @@
     <!-- ── TAB: 分店水位 ── -->
     <section class="tab" id="tab-stores" aria-label="分店庫存水位">
 
-      <div class="section-label">🏬 各分店庫存水位</div>
+      <div class="search-row" style="margin-bottom:10px">
+        <div class="section-label" style="margin:0">🏬 各分店庫存水位</div>
+        <button class="btn btn-primary btn-sm" onclick="openAddStore()" data-admin-only>＋ 新增分店</button>
+      </div>
       <div class="store-cards-grid" id="storeGrid"></div>
 
       <div class="section-label" style="margin-top:8px">🔄 最近異動</div>
@@ -480,6 +483,41 @@
     <div class="modal-actions">
       <button class="btn-modal-cancel" onclick="closeConsumeModal()">取消</button>
       <button class="btn-modal-save consume-save-btn" onclick="submitConsume()">✅ 記錄消耗</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: 分店 ══════════ -->
+<div class="overlay" id="storeModal" role="dialog" aria-modal="true" aria-labelledby="storeModalTitle">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-title">
+      <span id="storeModalTitle">新增分店</span>
+      <button class="close-btn" onclick="closeStoreModal()" aria-label="關閉">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="fStoreName">分店名稱 *</label>
+      <input id="fStoreName" placeholder="例：大西台北店">
+    </div>
+
+    <div class="field">
+      <label for="fStoreType">類型</label>
+      <select id="fStoreType">
+        <option value="branch">分店</option>
+        <option value="warehouse">倉庫（總倉）</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>顏色標記</label>
+      <div class="store-color-presets" id="storeColorPresets"></div>
+      <input type="hidden" id="fStoreColor" value="#10b981">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeStoreModal()">取消</button>
+      <button class="btn-modal-save" onclick="saveStore()">✅ 儲存</button>
     </div>
   </div>
 </div>

@@ -324,40 +324,116 @@ function renderInventory() {
 /* ═══════════════════ STORES (水位頁) ═══════════════════ */
 function renderStores() {
   const grid = document.getElementById('storeGrid');
-  grid.innerHTML = STORES.map(s => {
-    const lowCount = products.filter(p => isLow(p, s.id)).length;
-    const bars = products.map(p => {
-      const w = Math.min(100, pctOf(p, s.id) * 100).toFixed(1);
+
+  if (!STORES.length) {
+    grid.innerHTML = '<div class="empty-state">尚無分店，請新增</div>';
+  } else {
+    grid.innerHTML = STORES.map(s => {
+      const lowCount = products.filter(p => isLow(p, s.id)).length;
+      const bars = products.map(p => {
+        const w = Math.min(100, pctOf(p, s.id) * 100).toFixed(1);
+        return `
+          <div class="store-prod-bar">
+            <div class="store-prod-bar-labels">
+              <span class="store-prod-label">${p.name.split('（')[0].trim()}</span>
+              <span class="store-prod-val">${stockOf(p, s.id)} ${p.unit}</span>
+            </div>
+            <div class="bar-track" style="height:6px">
+              <div class="bar-fill ${barCls(p, s.id)}" style="width:${w}%"></div>
+            </div>
+          </div>`;
+      }).join('');
+
       return `
-        <div class="store-prod-bar">
-          <div class="store-prod-bar-labels">
-            <span class="store-prod-label">${p.name.split('（')[0].trim()}</span>
-            <span class="store-prod-val">${stockOf(p, s.id)} ${p.unit}</span>
+        <div class="store-card" style="border-color:${s.color}25">
+          <div class="store-card-header">
+            <div class="store-dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}88"></div>
+            <div style="flex:1">
+              <div class="store-name">${s.name}</div>
+              <div class="store-type">${s.type === 'warehouse' ? '中心倉庫' : '分店'}${lowCount ? ' · ⚠ ' + lowCount + ' 項低庫存' : ''}</div>
+            </div>
+            ${isAdmin() ? `<button class="btn btn-secondary btn-sm btn-danger" style="margin-left:8px;flex-shrink:0" onclick="deleteStore('${s.id}','${s.name.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
           </div>
-          <div class="bar-track" style="height:6px">
-            <div class="bar-fill ${barCls(p, s.id)}" style="width:${w}%"></div>
-          </div>
+          ${bars || '<div style="font-size:12px;color:var(--dim);padding:6px 0">尚無品項</div>'}
         </div>`;
     }).join('');
-
-    return `
-      <div class="store-card" style="border-color:${s.color}25">
-        <div class="store-card-header">
-          <div class="store-dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}88"></div>
-          <div>
-            <div class="store-name">${s.name}</div>
-            <div class="store-type">${s.type === 'warehouse' ? '中心倉庫' : '分店'}${lowCount ? ' · ⚠ ' + lowCount + ' 項低庫存' : ''}</div>
-          </div>
-        </div>
-        ${bars}
-      </div>`;
-  }).join('');
+  }
 
   const txEl = document.getElementById('storeTxList');
   const list = transactions.slice(0, 10);
   txEl.innerHTML = list.length
     ? list.map(tx => txHtml(tx)).join('')
     : '<div class="empty-state">尚無異動記錄</div>';
+}
+
+/* ═══════════════════ STORE MODAL ═══════════════════ */
+const STORE_COLORS = [
+  { color: '#10b981', bg: '#d1fae5' },
+  { color: '#3b82f6', bg: '#dbeafe' },
+  { color: '#f59e0b', bg: '#fef3c7' },
+  { color: '#ef4444', bg: '#fee2e2' },
+  { color: '#8b5cf6', bg: '#ede9fe' },
+  { color: '#f97316', bg: '#fff3e8' },
+  { color: '#06b6d4', bg: '#cffafe' },
+  { color: '#ec4899', bg: '#fce7f3' },
+];
+
+function openAddStore() {
+  document.getElementById('storeModalTitle').textContent = '🏬 新增分店';
+  document.getElementById('fStoreName').value = '';
+  document.getElementById('fStoreType').value = 'branch';
+  _setStoreColor(STORE_COLORS[0].color, STORE_COLORS[0].bg);
+  _renderStoreColorPresets();
+  document.getElementById('storeModal').classList.add('open');
+}
+
+function closeStoreModal() {
+  document.getElementById('storeModal').classList.remove('open');
+}
+
+function _renderStoreColorPresets() {
+  const selected = document.getElementById('fStoreColor').value;
+  document.getElementById('storeColorPresets').innerHTML = STORE_COLORS.map(c =>
+    `<button type="button" class="store-color-btn${c.color === selected ? ' selected' : ''}"
+      style="background:${c.color}"
+      onclick="_setStoreColor('${c.color}','${c.bg}')"></button>`
+  ).join('');
+}
+
+function _setStoreColor(color, bg) {
+  document.getElementById('fStoreColor').value = color;
+  document.getElementById('fStoreColor').dataset.bg = bg;
+  _renderStoreColorPresets();
+}
+
+async function saveStore() {
+  const name  = document.getElementById('fStoreName').value.trim();
+  const type  = document.getElementById('fStoreType').value;
+  const color = document.getElementById('fStoreColor').value;
+  const bg    = document.getElementById('fStoreColor').dataset.bg || '#e6f1fb';
+  if (!name) { toast('請填寫分店名稱', '#ef4444'); return; }
+
+  try {
+    await dbAddStore(name, type, color, bg);
+    closeStoreModal();
+    STORES = await dbLoadStores();
+    toast('✅ 分店已新增：' + name);
+    renderStores();
+  } catch (e) {
+    toast('❌ ' + e.message, '#ef4444');
+  }
+}
+
+async function deleteStore(id, name) {
+  if (!confirm(`確定要刪除「${name}」？\n注意：此分店的庫存記錄也會一併刪除。`)) return;
+  try {
+    await dbDeleteStore(id);
+    STORES = await dbLoadStores();
+    toast('🗑️ 分店已刪除', '#f59e0b');
+    renderStores();
+  } catch (e) {
+    toast('❌ ' + e.message, '#ef4444');
+  }
 }
 
 /* ═══════════════════ TRANSACTIONS ═══════════════════ */
