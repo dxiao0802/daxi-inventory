@@ -1,12 +1,579 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>大西庫存管理系統</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="大西庫存">
+  <meta name="theme-color" content="#0d1117">
+  <title>大西庫存管理系統</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════ LOADING BAR ══════════ -->
+<div id="loadingBar"></div>
+
+<!-- ══════════ LOGIN OVERLAY ══════════ -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">🏪</div>
+    <div class="login-title">庫存管理系統</div>
+
+    <!-- 分頁按鈕 -->
+    <div class="login-tabs">
+      <button id="lBtn-login"    class="login-tab active" onclick="showLoginTab('login')">登入</button>
+      <button id="lBtn-register" class="login-tab"        onclick="showLoginTab('register')">建立新系統</button>
+    </div>
+
+    <!-- 登入 -->
+    <div id="lTab-login">
+      <div class="field">
+        <label for="loginEmail">電子郵件</label>
+        <input id="loginEmail" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="loginPassword">密碼</label>
+        <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button id="loginBtn" class="btn btn-primary login-submit" onclick="doLogin()">登入</button>
+    </div>
+
+    <!-- 建立新系統（新老闆） -->
+    <div id="lTab-register" style="display:none">
+      <div class="field">
+        <label for="regOrgName">店家 / 品牌名稱 *</label>
+        <input id="regOrgName" placeholder="例：大西餐飲">
+      </div>
+      <div class="field">
+        <label for="regName">您的姓名 *</label>
+        <input id="regName" placeholder="例：小明">
+      </div>
+      <div class="field">
+        <label for="regEmail">電子郵件 *</label>
+        <input id="regEmail" type="email" placeholder="your@email.com">
+      </div>
+      <div class="field">
+        <label for="regPass">密碼 *</label>
+        <input id="regPass" type="password" placeholder="至少 6 個字元">
+      </div>
+      <div id="regError" class="login-error"></div>
+      <button id="regBtn" class="btn btn-primary login-submit" onclick="doRegisterOwner()">建立我的系統</button>
+    </div>
+
+    <!-- 員工受邀加入（?invite=token 時自動顯示） -->
+    <div id="lTab-invite" style="display:none">
+      <div id="inviteOrgName" style="font-size:13px;color:var(--muted);margin-bottom:14px;text-align:center"></div>
+      <input type="hidden" id="inviteToken">
+      <input type="hidden" id="inviteOrgId">
+      <input type="hidden" id="inviteRole">
+      <div class="field">
+        <label for="inviteName">您的姓名 *</label>
+        <input id="inviteName" placeholder="例：小明">
+      </div>
+      <div class="field">
+        <label for="inviteEmail">電子郵件 *</label>
+        <input id="inviteEmail" type="email" placeholder="your@email.com">
+      </div>
+      <div class="field">
+        <label for="invitePass">設定密碼 *</label>
+        <input id="invitePass" type="password" placeholder="至少 6 個字元">
+      </div>
+      <div id="inviteError" class="login-error"></div>
+      <button id="inviteBtn" class="btn btn-primary login-submit" onclick="doRegisterInvite()">加入系統</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ONBOARDING OVERLAY（已登入但沒有 org） ══════════ -->
+<div id="onboardingOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);align-items:center;justify-content:center">
+  <div class="login-card">
+    <div class="login-logo">🎉</div>
+    <div class="login-title">設定您的系統</div>
+    <div class="login-sub" style="margin-bottom:20px">請輸入店家資訊完成設定</div>
+    <div class="field">
+      <label for="obOrgName">店家 / 品牌名稱 *</label>
+      <input id="obOrgName" placeholder="例：大西餐飲">
+    </div>
+    <div class="field">
+      <label for="obName">您的姓名 *</label>
+      <input id="obName" placeholder="例：小明">
+    </div>
+    <div id="obError" class="login-error"></div>
+    <button id="obBtn" class="btn btn-primary login-submit" onclick="doCreateOrg()">建立我的系統</button>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+
+  <!-- ══════════ HEADER ══════════ -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">🏪</div>
+      <div>
+        <div class="header-title">大西庫存管理系統</div>
+        <div class="header-sub">DAXI INVENTORY MANAGEMENT</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="alert-pill" id="alertPill" style="display:none" aria-live="polite"></div>
+      <span class="role-badge" id="roleBadge"></span>
+      <div class="user-chip" id="headerUser"></div>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()">登出</button>
+      <button class="btn btn-primary" onclick="openTxModal()" aria-label="新增異動單" data-admin-only>
+        ＋ 新增異動
+      </button>
+    </div>
+  </header>
+
+  <!-- ══════════ NAV ══════════ -->
+  <nav class="nav-bar" role="navigation" aria-label="主功能選單">
+    <button class="nav-btn active" onclick="switchTab('overview')" aria-current="page">
+      <span class="icon">📊</span>總覽
+    </button>
+    <button class="nav-btn" onclick="switchTab('inventory')">
+      <span class="icon">📦</span>庫存
+    </button>
+    <button class="nav-btn" onclick="switchTab('stores')">
+      <span class="icon">🏬</span>分店水位
+    </button>
+    <button class="nav-btn" onclick="switchTab('charts')">
+      <span class="icon">📈</span>圖表
+    </button>
+    <button class="nav-btn" onclick="switchTab('transactions')">
+      <span class="icon">🔄</span>異動記錄
+    </button>
+    <button class="nav-btn" onclick="switchTab('restock')">
+      <span class="icon">🚨</span>叫貨清單
+    </button>
+    <button class="nav-btn" onclick="switchTab('consume')">
+      <span class="icon">🍳</span>廚房消耗
+    </button>
+    <button class="nav-btn" onclick="switchTab('staff')" data-admin-only>
+      <span class="icon">👥</span>員工管理
+    </button>
+  </nav>
+
+  <!-- ══════════ MAIN ══════════ -->
+  <main class="main" id="mainContent">
+
+    <!-- ── TAB: 總覽 ── -->
+    <section class="tab active" id="tab-overview" aria-label="總覽">
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-label">品項總數</div>
+          <div class="stat-value" id="sTotal" style="color:var(--blue)">—</div>
+          <div class="stat-sub">個品項</div>
+          <div class="stat-glow" style="background:rgba(59,130,246,0.1)"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-label">低庫存警示</div>
+          <div class="stat-value" id="sLow" style="color:var(--red)">—</div>
+          <div class="stat-sub">需要叫貨</div>
+          <div class="stat-glow" style="background:rgba(239,68,68,0.1)"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔄</div>
+          <div class="stat-label">今日異動</div>
+          <div class="stat-value" id="sTx" style="color:var(--yellow)">—</div>
+          <div class="stat-sub">筆記錄</div>
+          <div class="stat-glow" style="background:rgba(245,158,11,0.1)"></div>
+        </div>
+      </div>
+
+      <div class="section-label">📉 倉庫庫存水位</div>
+      <div class="card card-pad" id="overviewBars"></div>
+
+    </section>
+
+    <!-- ── TAB: 庫存 ── -->
+    <section class="tab" id="tab-inventory" aria-label="庫存管理">
+
+      <div class="search-row">
+        <input
+          class="search-input"
+          id="searchInput"
+          type="search"
+          placeholder="🔍 搜尋品名或 SKU…"
+          oninput="renderInventory()"
+          aria-label="搜尋品項">
+        <button class="btn btn-secondary" onclick="openImportModal()" title="批次匯入 Excel / CSV" data-admin-only>📥 匯入</button>
+        <button class="btn btn-primary" onclick="openAddProd()" data-admin-only>＋ 新增品項</button>
+      </div>
+
+      <div class="card" id="inventoryList" role="list" aria-label="庫存品項列表"></div>
+
+    </section>
+
+    <!-- ── TAB: 分店水位 ── -->
+    <section class="tab" id="tab-stores" aria-label="分店庫存水位">
+
+      <div class="section-label">🏬 各分店庫存水位</div>
+      <div class="store-cards-grid" id="storeGrid"></div>
+
+      <div class="section-label" style="margin-top:8px">🔄 最近異動</div>
+      <div class="card" id="storeTxList"></div>
+
+    </section>
+
+    <!-- ── TAB: 圖表 ── -->
+    <section class="tab" id="tab-charts" aria-label="統計圖表">
+
+      <div class="section-label">📉 各分店出貨趨勢（近 7 日）</div>
+      <div class="card card-pad">
+        <div class="chart-wrap">
+          <canvas id="trendChart" role="img" aria-label="近七日各分店出貨趨勢折線圖"></canvas>
+        </div>
+        <div class="legend-row" id="trendLegend"></div>
+      </div>
+
+      <div class="section-label">🥧 分店本週出貨比例</div>
+      <div class="card card-pad">
+        <div class="chart-wrap-sm">
+          <canvas id="pieChart" role="img" aria-label="分店本週出貨比例圓餅圖"></canvas>
+        </div>
+        <div class="legend-row" id="pieLegend"></div>
+      </div>
+
+      <div class="section-label">📊 各分店每日出貨量（本週）</div>
+      <div class="card card-pad">
+        <div class="chart-wrap-bar">
+          <canvas id="barChart" role="img" aria-label="各分店每日出貨量長條圖"></canvas>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── TAB: 異動記錄 ── -->
+    <section class="tab" id="tab-transactions" aria-label="異動記錄">
+
+      <div class="section-label">🔄 異動記錄（最新 50 筆）</div>
+      <div class="card" id="txList" role="log" aria-label="異動記錄列表" aria-live="polite"></div>
+
+    </section>
+
+    <!-- ── TAB: 叫貨清單 ── -->
+    <section class="tab" id="tab-restock" aria-label="叫貨清單">
+
+      <div class="section-label">🚨 需要叫貨品項</div>
+      <div id="restockList" role="list" aria-label="低庫存叫貨清單"></div>
+
+      <!-- Discord 預覽 -->
+      <div class="discord-block">
+        <div class="discord-title">🤖 Discord 每日摘要預覽</div>
+        <pre class="discord-pre" id="discordPreview" aria-label="Discord 摘要預覽文字"></pre>
+        <button class="btn btn-secondary" style="margin-top:12px;color:#818cf8;border-color:rgba(88,101,242,0.3);"
+          onclick="alert('Discord Webhook 尚未設定。\n請在後端設定 DISCORD_WEBHOOK_URL 環境變數。')">
+          📤 發送至 Discord（模擬）
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ── TAB: 廚房消耗 ── -->
+    <section class="tab" id="tab-consume" aria-label="廚房消耗記錄">
+
+      <div class="consume-header-row">
+        <div>
+          <div class="section-label" style="margin-bottom:2px">🍳 廚房消耗記錄</div>
+          <div style="font-size:12px;color:var(--dim)">選擇店鋪，點按品項右側「消耗」記錄用量</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openConsumeModal()">＋ 快速記錄</button>
+      </div>
+
+      <div class="section-label">選擇店鋪</div>
+      <div class="consume-store-selector" id="consumeStoreSelector"></div>
+
+      <div class="section-label">📋 各品項現有庫存</div>
+      <div class="card" id="consumeProdList" role="list"></div>
+
+      <div class="section-label">📜 本店消耗記錄</div>
+      <div class="card" id="consumeTxList" role="log" aria-live="polite"></div>
+
+    </section>
+
+    <!-- ── TAB: 員工管理 ── -->
+    <section class="tab" id="tab-staff" aria-label="員工管理">
+
+      <div class="section-label">🔗 邀請員工加入</div>
+      <div class="card card-pad" style="margin-bottom:12px">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px">產生邀請連結後傳給員工，員工點擊連結即可自行註冊</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="generateInvite('staff')">👤 產生員工邀請連結</button>
+          <button class="btn btn-secondary" onclick="generateInvite('admin')">🔑 產生管理者邀請連結</button>
+        </div>
+      </div>
+
+      <div class="section-label">📋 有效邀請連結</div>
+      <div class="card" id="staffInviteList"></div>
+
+      <div class="section-label" style="margin-top:12px">👥 目前成員</div>
+      <div class="card" id="staffMemberList"></div>
+
+    </section>
+
+  </main>
+</div>
+
+<!-- ══════════ MODAL: 品項 ══════════ -->
+<div class="overlay" id="prodModal" role="dialog" aria-modal="true" aria-labelledby="prodModalTitle">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-title">
+      <span id="prodModalTitle">新增品項</span>
+      <button class="close-btn" onclick="closeProdModal()" aria-label="關閉">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="fName">品項名稱 *</label>
+      <input id="fName" placeholder="例：鮮蚵（生）">
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="fQty">倉庫庫存 *</label>
+        <input id="fQty" type="number" min="0" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="fThr">安全水位 *</label>
+        <input id="fThr" type="number" min="0" placeholder="10">
+      </div>
+      <div class="field">
+        <label for="fUnit">單位</label>
+        <input id="fUnit" placeholder="公斤">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label for="fSupplier">供應商</label>
+        <input id="fSupplier" placeholder="供應商名稱">
+      </div>
+      <div class="field" style="flex:1">
+        <label for="fContact">聯絡電話</label>
+        <input id="fContact" placeholder="02-xxxx-xxxx">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeProdModal()">取消</button>
+      <button class="btn-modal-save"   onclick="saveProd()">✅ 儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: 異動單 ══════════ -->
+<div class="overlay" id="txModal" role="dialog" aria-modal="true" aria-labelledby="txModalTitle">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-title">
+      <span id="txModalTitle">新增異動單</span>
+      <button class="close-btn" onclick="closeTxModal()" aria-label="關閉">✕</button>
+    </div>
+
+    <!-- 類型切換 -->
+    <div class="tx-type-row">
+      <button class="tx-type-btn active-out" id="typeOut" onclick="setTxType('out')">
+        🚚 領貨出倉
+      </button>
+      <button class="tx-type-btn" id="typeIn" onclick="setTxType('in')">
+        📦 進貨入倉
+      </button>
+    </div>
+
+    <div class="field">
+      <label for="txProd">品項 *</label>
+      <select id="txProd" aria-label="選擇品項"></select>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="txFrom" id="fromLabel">來源倉庫</label>
+        <select id="txFrom" aria-label="來源"></select>
+      </div>
+      <div class="field">
+        <label for="txTo">目的地</label>
+        <select id="txTo" aria-label="目的地"></select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="txQty">數量 *</label>
+        <input id="txQty" type="number" min="1" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="txOp">操作人員（已自動填入）</label>
+        <input id="txOp" placeholder="姓名">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="txNote">備註</label>
+      <input id="txNote" placeholder="選填">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeTxModal()">取消</button>
+      <button class="btn-modal-save"   onclick="submitTx()">✅ 確認送出</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: 廚房消耗 ══════════ -->
+<div class="overlay" id="consumeModal" role="dialog" aria-modal="true" aria-labelledby="consumeModalTitle">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-title">
+      <span id="consumeModalTitle">🍳 記錄消耗</span>
+      <button class="close-btn" onclick="closeConsumeModal()" aria-label="關閉">✕</button>
+    </div>
+
+    <div class="field">
+      <label for="cProd">品項 *</label>
+      <select id="cProd" aria-label="選擇品項" onchange="updateConsumeStockHint()"></select>
+    </div>
+
+    <div class="field">
+      <label for="cStore">消耗店鋪 *</label>
+      <select id="cStore" aria-label="選擇店鋪" onchange="updateConsumeStockHint()"></select>
+    </div>
+
+    <div id="cCurrentStock" class="consume-stock-hint"></div>
+
+    <div class="tx-type-row" style="margin-bottom:14px">
+      <button class="tx-type-btn active-consume" id="cModeDelta" onclick="setConsumeMode('delta')">
+        ➖ 輸入消耗量
+      </button>
+      <button class="tx-type-btn" id="cModeRemain" onclick="setConsumeMode('remain')">
+        📦 輸入剩餘量
+      </button>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="cQty" id="cQtyLabel">消耗數量 *</label>
+        <input id="cQty" type="number" min="0" placeholder="0" oninput="updateConsumeStockHint()">
+      </div>
+      <div class="field">
+        <label for="cOp">操作人員</label>
+        <input id="cOp" placeholder="姓名">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="cNote">備註</label>
+      <input id="cNote" placeholder="選填（例：晚餐備料）">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeConsumeModal()">取消</button>
+      <button class="btn-modal-save consume-save-btn" onclick="submitConsume()">✅ 記錄消耗</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: 批次匯入 ══════════ -->
+<div class="overlay" id="importModal" role="dialog" aria-modal="true" aria-label="批次匯入品項">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle" aria-hidden="true"></div>
+    <div class="modal-title">
+      <span>📥 批次匯入品項</span>
+      <button class="close-btn" onclick="closeImportModal()" aria-label="關閉">✕</button>
+    </div>
+
+    <div class="import-step">
+      <div class="import-step-label">① 下載範本，填寫後上傳</div>
+      <button class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">📄 下載 CSV 範本</button>
+      <div class="import-hint">欄位：品名、單位、倉庫庫存、安全水位、供應商、聯絡電話</div>
+    </div>
+
+    <div class="import-step">
+      <div class="import-step-label">② 選擇檔案</div>
+      <div class="import-file-row">
+        <label class="btn btn-secondary btn-sm import-file-btn" for="importFile">📂 選擇 .xlsx 或 .csv</label>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="handleImportFile(event)" style="display:none">
+        <span id="importFileName" class="import-file-name"></span>
+      </div>
+    </div>
+
+    <div id="importPreviewSection" style="display:none">
+      <div class="import-step-label">③ 資料預覽</div>
+      <div id="importPreviewTable" class="import-table-wrap"></div>
+      <div id="importSummary" class="import-summary"></div>
+    </div>
+
+    <div id="importError" class="import-error" style="display:none"></div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeImportModal()">取消</button>
+      <button class="btn-modal-save" id="importConfirmBtn" onclick="confirmImport()" disabled style="opacity:0.4">✅ 確認匯入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ══════════ BOTTOM TAB BAR (手機) ══════════ -->
+<nav class="bottom-tab-bar" aria-label="底部導覽">
+  <button class="btab active" data-tab="overview" onclick="switchTab('overview')">
+    <span class="btab-icon">📊</span>總覽
+  </button>
+  <button class="btab" data-tab="inventory" onclick="switchTab('inventory')">
+    <span class="btab-icon">📦</span>庫存
+  </button>
+  <button class="btab" onclick="openTxModal()" aria-label="新增異動" data-admin-only>
+    <div class="btab-fab">＋</div>
+  </button>
+  <button class="btab" data-tab="transactions" onclick="switchTab('transactions')">
+    <span class="btab-icon">🔄</span>異動
+  </button>
+  <button class="btab" data-tab="consume" onclick="switchTab('consume')">
+    <span class="btab-icon">🍳</span>消耗
+  </button>
+  <button class="btab" onclick="openMoreDrawer()">
+    <span class="btab-icon">⋯</span>更多
+  </button>
+</nav>
+
+<!-- ══════════ MORE DRAWER (手機) ══════════ -->
+<div class="more-drawer-bg" id="moreDrawerBg" onclick="closeMoreDrawer()"></div>
+<div class="more-drawer" id="moreDrawer">
+  <div class="more-drawer-handle"></div>
+  <div class="more-drawer-label">更多功能</div>
+  <button class="more-item" onclick="switchTabFromDrawer('stores')">
+    <span class="more-item-icon">🏬</span>分店水位
+  </button>
+  <button class="more-item" onclick="switchTabFromDrawer('charts')">
+    <span class="more-item-icon">📈</span>統計圖表
+  </button>
+  <button class="more-item" onclick="switchTabFromDrawer('restock')">
+    <span class="more-item-icon">🚨</span>叫貨清單
+  </button>
+  <button class="more-item" onclick="switchTabFromDrawer('staff')" data-admin-only>
+    <span class="more-item-icon">👥</span>員工管理
+  </button>
+  <button class="more-item" onclick="doLogout(); closeMoreDrawer()">
+    <span class="more-item-icon">🚪</span>登出
+  </button>
+</div>
+
+<!-- ══════════ SCRIPTS ══════════ -->
+<script src="data/data.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+
+</body>
 </html>
