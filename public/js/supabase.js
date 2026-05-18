@@ -165,17 +165,6 @@ async function dbBatchImportProducts(rows) {
 /* ── 提交異動 ── */
 async function dbSubmitTx({ type, productId, productName, qty, fromName, toName, fromStoreId, toStoreId, operatorId, operatorName, note }) {
 
-  // 防護：確認 UUID 型欄位不是 NaN / undefined / 數字
-  function assertUuid(val, label) {
-    if (!val || typeof val !== 'string' || val === 'NaN' || val === 'undefined') {
-      throw new Error(`${label} 無效（${val}），請重新整理後再試`);
-    }
-  }
-  assertUuid(productId,  'productId');
-  if (type === 'consume' || type === 'out') assertUuid(fromStoreId, 'fromStoreId');
-  if (type === 'out' || type === 'in')      assertUuid(toStoreId,   'toStoreId');
-  if (type === 'consume')                   assertUuid(fromStoreId, 'fromStoreId (consume)');
-
   async function getQty(storeId) {
     const { data, error } = await sb
       .from('inventory').select('qty')
@@ -211,32 +200,6 @@ async function dbSubmitTx({ type, productId, productName, qty, fromName, toName,
     note: note || '', org_id: _orgId,
   });
   if (te) throw te;
-}
-
-/* ── 新增分店 ── */
-async function dbAddStore(name, type, color, bg) {
-  const { data: store, error } = await sb
-    .from('stores')
-    .insert({ org_id: _orgId, name, type, color, bg })
-    .select('id')
-    .single();
-  if (error) throw error;
-
-  // 為所有現有品項建立庫存記錄（數量 0），用 upsert 避免重複 key 錯誤
-  const { data: prods } = await sb.from('products').select('id');
-  if (prods?.length) {
-    await sb.from('inventory').upsert(
-      prods.map(p => ({ product_id: p.id, store_id: store.id, qty: 0, threshold: 0, org_id: _orgId })),
-      { onConflict: 'product_id,store_id', ignoreDuplicates: true }
-    );
-  }
-  return store.id;
-}
-
-/* ── 刪除分店 ── */
-async function dbDeleteStore(id) {
-  const { error } = await sb.from('stores').delete().eq('id', id);
-  if (error) throw error;
 }
 
 /* ══════════════════════════════════════════════
