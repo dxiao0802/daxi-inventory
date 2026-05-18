@@ -783,7 +783,7 @@ function renderConsume() {
     const style = isActive
       ? `background:${s.color}22;border-color:${s.color}55;color:${s.color}`
       : '';
-    return `<button class="consume-store-btn${isActive ? ' active' : ''}" style="${style}" onclick="setConsumeStore(${s.id})">${s.name}</button>`;
+    return `<button class="consume-store-btn${isActive ? ' active' : ''}" style="${style}" onclick="setConsumeStore('${s.id}')">${s.name}</button>`;
   }).join('');
 
   // 品項列表
@@ -804,7 +804,7 @@ function renderConsume() {
               <span style="color:${qtyColor};font-family:var(--font-mono);font-size:12px">${qty} ${p.unit}</span>
             </div>
           </div>
-          <button class="consume-btn" onclick="openConsumeModal('${p.id}', ${consumeStoreFilter})">消耗</button>
+          <button class="consume-btn" onclick="openConsumeModal('${p.id}', '${consumeStoreFilter}')">消耗</button>
         </div>`;
     }).join('');
   }
