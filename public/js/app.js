@@ -253,27 +253,7 @@ function switchTab(id) {
 }
 
 /* ═══════════════════ OVERVIEW ═══════════════════ */
-function renderOverview() {
-  const el = document.getElementById('overviewBars');
-  if (!products.length) {
-    el.innerHTML = '<div class="empty-state">尚無品項</div>';
-    return;
-  }
-  el.innerHTML = products.map(p => {
-    const sid = 1;
-    const w = Math.min(100, pctOf(p, sid) * 100).toFixed(1);
-    return `
-      <div class="overview-bar-row">
-        <div class="overview-bar-labels">
-          <span class="overview-bar-name">${anyLow(p) ? '⚠ ' : ''}${p.name}</span>
-          <span class="overview-bar-val">${stockOf(p, 1)} / ${thrOf(p, 1)} ${p.unit}</span>
-        </div>
-        <div class="bar-track">
-          <div class="bar-fill ${barCls(p, sid)}" style="width:${w}%"></div>
-        </div>
-      </div>`;
-  }).join('');
-}
+function renderOverview() {}
 
 /* ═══════════════════ INVENTORY ═══════════════════ */
 function renderInventory() {
@@ -326,30 +306,26 @@ function renderStores() {
   const grid = document.getElementById('storeGrid');
   grid.innerHTML = STORES.map(s => {
     const lowCount = products.filter(p => isLow(p, s.id)).length;
-    const bars = products.map(p => {
-      const w = Math.min(100, pctOf(p, s.id) * 100).toFixed(1);
-      return `
-        <div class="store-prod-bar">
-          <div class="store-prod-bar-labels">
-            <span class="store-prod-label">${p.name.split('（')[0].trim()}</span>
-            <span class="store-prod-val">${stockOf(p, s.id)} ${p.unit}</span>
-          </div>
-          <div class="bar-track" style="height:6px">
-            <div class="bar-fill ${barCls(p, s.id)}" style="width:${w}%"></div>
-          </div>
-        </div>`;
-    }).join('');
-
+    const totalItems = products.length;
     return `
       <div class="store-card" style="border-color:${s.color}25">
         <div class="store-card-header">
           <div class="store-dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}88"></div>
           <div>
             <div class="store-name">${s.name}</div>
-            <div class="store-type">${s.type === 'warehouse' ? '中心倉庫' : '分店'}${lowCount ? ' · ⚠ ' + lowCount + ' 項低庫存' : ''}</div>
+            <div class="store-type">${s.type === 'warehouse' ? '中心倉庫' : '分店'}</div>
           </div>
         </div>
-        ${bars}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+          <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--dim);margin-bottom:4px">品項總數</div>
+            <div style="font-size:18px;font-weight:700;color:var(--blue)">${totalItems}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--dim);margin-bottom:4px">低庫存警示</div>
+            <div style="font-size:18px;font-weight:700;color:${lowCount ? 'var(--red)' : 'var(--green)'}">${lowCount}</div>
+          </div>
+        </div>
       </div>`;
   }).join('');
 
@@ -1043,7 +1019,7 @@ function showLoginTab(tab) {
 
 /* ═══════════════════ IMPORT (Excel / CSV) ═══════════════════ */
 function downloadImportTemplate() {
-  const csv = '﻿品名,單位,倉庫庫存,安全水位,供應商,聯絡電話\n鮮蚵（生）,公斤,50,20,大西水產,02-1234-5678\n花枝,公斤,30,15,大西水產,02-1234-5678';
+  const csv = '﻿品名,單位,倉庫庫存,安全水位,供應商,聯絡電話\n乾麵線,包,30,10,大西食材行,02-1234-5678\n豬大腸,公斤,15,5,大西肉品,02-2345-6789\n柴魚片,公斤,5,2,大西食材行,02-1234-5678\n地瓜粉,公斤,10,3,大西食材行,02-1234-5678\n烏醋,瓶,20,5,大西調味,02-3456-7890\n蒜頭,公斤,3,1,大西蔬果,02-4567-8901';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = '品項匯入範本.csv';
