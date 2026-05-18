@@ -259,14 +259,15 @@ function renderOverview() {
     el.innerHTML = '<div class="empty-state">尚無品項</div>';
     return;
   }
+  const wid = STORES.find(s => s.type === 'warehouse')?.id;
   el.innerHTML = products.map(p => {
-    const sid = 1;
+    const sid = wid;
     const w = Math.min(100, pctOf(p, sid) * 100).toFixed(1);
     return `
       <div class="overview-bar-row">
         <div class="overview-bar-labels">
           <span class="overview-bar-name">${anyLow(p) ? '⚠ ' : ''}${p.name}</span>
-          <span class="overview-bar-val">${stockOf(p, 1)} / ${thrOf(p, 1)} ${p.unit}</span>
+          <span class="overview-bar-val">${stockOf(p, sid)} / ${thrOf(p, sid)} ${p.unit}</span>
         </div>
         <div class="bar-track">
           <div class="bar-fill ${barCls(p, sid)}" style="width:${w}%"></div>
@@ -658,7 +659,7 @@ function openEditProd(id) {
   document.getElementById('prodModalTitle').textContent = '✏️ 編輯：' + p.name;
   document.getElementById('fName').value     = p.name;
   document.getElementById('fQty').value      = p.stock[STORES.find(s => s.type === 'warehouse')?.id] || 0;
-  document.getElementById('fThr').value      = p.threshold[1] || 0;
+  document.getElementById('fThr').value      = p.threshold[STORES.find(s => s.type === 'warehouse')?.id] || 0;
   document.getElementById('fUnit').value     = p.unit;
   document.getElementById('fSupplier').value = p.supplier || '';
   document.getElementById('fContact').value  = p.supplierContact || '';
@@ -706,13 +707,15 @@ async function deleteProd(id) {
 
 /* ═══════════════════ TRANSACTION MODAL ═══════════════════ */
 function openTxModal() {
+  const warehouseId = STORES.find(s => s.type === 'warehouse')?.id;
   document.getElementById('txProd').innerHTML = products.map(p =>
-    `<option value="${p.id}">${p.name}（倉庫現有：${p.stock[1] ?? 0} ${p.unit}）</option>`
+    `<option value="${p.id}">${p.name}（倉庫現有：${p.stock[warehouseId] ?? 0} ${p.unit}）</option>`
   ).join('');
   const storeOpts = STORES.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
   document.getElementById('txFrom').innerHTML = storeOpts;
   document.getElementById('txTo').innerHTML   = storeOpts;
-  document.getElementById('txTo').value = '2';
+  const firstBranch = STORES.find(s => s.type === 'branch');
+  if (firstBranch) document.getElementById('txTo').value = firstBranch.id;
 
   // 自動填入目前登入者姓名
   document.getElementById('txOp').value  = authGetDisplayName(currentUser);
@@ -742,8 +745,8 @@ async function submitTx() {
   const p = products.find(x => x.id === pid);
   if (!p) return;
 
-  const fromId = parseInt(document.getElementById('txFrom').value);
-  const toId   = parseInt(document.getElementById('txTo').value);
+  const fromId = document.getElementById('txFrom').value;
+  const toId   = document.getElementById('txTo').value;
 
   const fromName = currentTxType === 'out' ? STORES.find(s => s.id === fromId)?.name : '供應商';
   const toName   = STORES.find(s => s.id === toId)?.name || '未知';
@@ -771,7 +774,7 @@ async function submitTx() {
 /* ═══════════════════ CONSUME TAB ═══════════════════ */
 function renderConsume() {
   const branches = STORES.filter(s => s.type === 'branch');
-  if (!consumeStoreFilter) consumeStoreFilter = branches[0]?.id || 2;
+  if (!consumeStoreFilter) consumeStoreFilter = branches[0]?.id;
   const selectedStore = STORES.find(s => s.id === consumeStoreFilter);
 
   // 分店選擇器
@@ -856,7 +859,7 @@ function closeConsumeModal() {
 
 function updateConsumeStockHint() {
   const pid  = document.getElementById('cProd').value;
-  const sid  = parseInt(document.getElementById('cStore').value);
+  const sid  = document.getElementById('cStore').value;
   const p    = products.find(x => x.id === pid);
   const hint = document.getElementById('cCurrentStock');
   if (p && sid) {
@@ -885,7 +888,7 @@ function updateConsumeStockHint() {
 
 async function submitConsume() {
   const pid       = document.getElementById('cProd').value;
-  const sid       = parseInt(document.getElementById('cStore').value);
+  const sid       = document.getElementById('cStore').value;
   const inputVal  = parseInt(document.getElementById('cQty').value);
   const op        = document.getElementById('cOp').value.trim();
   const note      = document.getElementById('cNote').value.trim();
