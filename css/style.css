@@ -253,6 +253,15 @@ select option { background: var(--surface); color: var(--text); }
 .store-prod-label { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%; }
 .store-prod-val   { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 
+/* ── Store Color Picker ── */
+.store-color-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.store-color-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 3px solid transparent;
+  cursor: pointer; transition: transform .15s, border-color .15s;
+}
+.store-color-btn:hover { transform: scale(1.15); }
+.store-color-btn.selected { border-color: #fff; transform: scale(1.15); }
+
 /* ── Transaction List ── */
 .tx-item {
   display: flex; align-items: flex-start; gap: 12px;
