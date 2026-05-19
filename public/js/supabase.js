@@ -2,8 +2,8 @@
    大西庫存管理系統 — Supabase 設定
    ═══════════════════════════════════════════ */
 
-const SUPABASE_URL = 'https://cgogniiofjokmwkdgqrp.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_oZZbpVqu2adeIa38oJifmA_qBxcGC8t';
+const SUPABASE_URL = 'https://daimrcymfzefxwlobfyf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_6claOlNDciZb3EcB6Oa-7Q_8RNAdTUw';
 
 if (!window.supabase) {
   document.addEventListener('DOMContentLoaded', () => {
